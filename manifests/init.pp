@@ -1,4 +1,10 @@
 class openmrs {
+  file { '/usr/share/tomcat6/.OpenMRS':,
+    ensure => directory,
+    group => 'tomcat6',
+    mode => '0775',
+  }
+
   exec { 'download-openmrs':
     cwd     => '/usr/src',
     creates => '/usr/src/openmrs.war',
