@@ -3,6 +3,7 @@ class openmrs {
   package { "mysql-server": ensure => installed }
 
   # Chaining the Notifications to control the order of the installation steps.
+
   Notify["OpenMRS-1"] ->  
     Exec["download-openmrs"] ->
   Notify["OpenMRS-2"] ->  
@@ -20,8 +21,16 @@ class openmrs {
   Notify["OpenMRS-6"] ->
     Exec["maven-install"] ->
   Notify["OpenMRS-7"] ->
-    Exec["unzip-into-module-directory"] 
-  #Notify["OpenMRS-8"]  
+    Exec["remove-previous-kenyaemr-distros"] ->
+    Exec["unzip-into-module-directory"]  ->
+  Notify["OpenMRS-8"] ->
+    Exec["wget-moduledistro"] ->
+    Exec["wget-logic"] ->
+  Notify["OpenMRS-9"] ->
+    Exec["wget-concept-dictionary"] ->
+    Exec["apply-concept-dictionary"] ->
+  Notify["OpenMRS-10"] ->
+    File ["/usr/share/tomcat6/.OpenMRS/openmrs-runtime.properties"] 
 
   notify {"OpenMRS-1":
     message=> "Step 1. Download openmrs.war to /usr/src/openmrs.war",
@@ -46,15 +55,6 @@ class openmrs {
     mode => '0775',
   }
   
-
-/*
-  # no longer in use
-  exec { 'unzip-openmrs':
-    command => '/usr/bin/unzip /usr/src/openmrs.war -d /var/lib/tomcat6/webapps/openmrs',
-    creates => '/var/lib/tomcat6/webapps/openmrs',
-  }
-*/
-
   notify {"OpenMRS-3":
     message=> "Step 3. Create mysql user openmrs@localhost with temp password \'temp_openmrs\'.",
   }
@@ -99,7 +99,7 @@ class openmrs {
   }
 
   notify {"OpenMRS-6":
-    message=> "Step 7. Run maven install to create distro.zip",
+    message=> "Step 6. Run maven install to create distro.zip",
   }
   exec{ "maven-install":
     cwd => '/usr/src/openmrs-module-kenyaemr',
@@ -108,10 +108,76 @@ class openmrs {
   }
 
   notify {"OpenMRS-7":
-    message=> "Step 8. Unzip distro into tomcat6 modules directory TODO, control chaining properly",
+    message=> "Step 7. Unzip distro into tomcat6 modules directory (usr/share/tomcat6/.OpenMRS/modules)",
+  }
+  exec{ "remove-previous-kenyaemr-distros":
+    cwd => '/usr/share/tomcat6/.OpenMRS/modules',
+    command => '/bin/rm -rf kenyaemr-distro-*',
   }
   exec{ "unzip-into-module-directory": 
     cwd => '/usr/src/openmrs-module-kenyaemr/distro/target',
-    command => '/usr/bin/unzip kenyaemr-distro-*-distro.zip /usr/share/tomcat6/.OpenMRS/modules',
+    command => '/usr/bin/unzip -fo kenyaemr-distro-*-distro.zip -d /usr/share/tomcat6/.OpenMRS/modules',
   }
+
+  notify {"OpenMRS-8":
+    message=> "Step 8. wget moduledistro and logic omods.",
+  }
+  exec { "wget-moduledistro":
+    cwd => '/usr/share/tomcat6/.OpenMRS/modules',
+    command => '/usr/bin/wget \'https://modules.openmrs.org/modules/download/moduledistro/moduledistro-1.2.omod\'',
+    creates => '/usr/share/tomcat6/.OpenMRS/modules/moduledistro-1.2.omod',
+  }
+  exec { "wget-logic":
+    cwd => '/usr/share/tomcat6/.OpenMRS/modules',
+    command => '/usr/bin/wget \'https://modules.openmrs.org/modules/download/logic/logic-0.5.2.omod\'',
+    creates => '/usr/share/tomcat6/.OpenMRS/modules/logic-0.5.2.omod',
+  }
+
+  notify {"OpenMRS-9":
+    message=> "Step 9. wget concept dictionary.",
+  }
+  exec { "wget-concept-dictionary":
+    cwd => '/usr/src',
+    command => '/usr/bin/wget \'https://openmrs:openmrs@download.cirg.washington.edu/openmrs/dictionary/openmrs_concepts_1.9.0_20120727.sql\'',
+    creates => '/usr/src/openmrs_concepts_1.9.0_20120727.sql';
+  }
+  exec { "apply-concept-dictionary":
+    cwd => '/usr/src',
+    command => '/usr/bin/mysql openmrs < openmrs_concepts_1.9.0_20120727.sql',
+  }
+
+  notify {"OpenMRS-10":
+    message=> "Step 10. Create openmrs-runtime.properties file in the .OpenMRS directory",
+  }
+  file {"/usr/share/tomcat6/.OpenMRS/openmrs-runtime.properties":
+    content => '
+      connection.username=openmrs
+      connection.password=temp_openmrs
+      connection.url=jdbc:mysql://localhost:3306/openmrs?autoReconnect=true&sessionVariables=storage_engine=InnoDB&useUnicode=true&characterEncoding=UTF-8
+      module.allow_web_admin=false
+      auto_update_database=false
+',
+  }
+
+  #
+
+  #notify {"OpenMRS-11":
+  #  message=> "Step 11. Alter the init.d/tomcat6 file",
+  #}
+  # plan:
+  #   use sed to delete the three configuration lines (if they exist)
+  #   use sed to insert the three new configuration lines
+  #exec {"alter-init.d-tomcat6-sed-runtimeproperties":
+  #  cwd => '/etc/init.d',
+  #  exec => ' 
+
+  # this fail task is used to short circuit this script for testing
+  #exec {"fail":
+  #  cwd => '/nowhere/fail/fail/fail',
+  #  command => '/bin/echo 0',
+  #}
+
+  # TODO: copy to the war file to the tomcat webapps directory
+    
+
 }
