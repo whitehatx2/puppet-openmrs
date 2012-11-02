@@ -24,7 +24,9 @@ package { "mysql-server": ensure => installed }
   Notify["OpenMRS-9"] ->
 	File ["/usr/share/tomcat6/.OpenMRS/openmrs-runtime.properties"]
   
-  Notify["OpenMRS-1"] -> 	
+  notify {"OpenMRS-1":
+    message=> "Step 1. Download openmrs war from url and unzip to tomcat",
+  } 	
   exec { 'download-openmrs':
     cwd     => '/usr/src',
     creates => '/usr/src/openmrs.war',
@@ -36,15 +38,18 @@ package { "mysql-server": ensure => installed }
     creates => '/var/lib/tomcat6/webapps/openmrs',
     require => Exec['download-openmrs'],
   }
-  Notify["OpenMRS-2"] ->
+  
+  notify {"OpenMRS-2":
+    message=> "Step 2. Create .OpenMRS folder",
+  }
   file { '/usr/share/tomcat6/.OpenMRS':,
     ensure => directory,
     group => 'tomcat6',
     mode => '0775',
   }
   
-  Notify {"OpenMRS-3":
-    message=> "Step 1. Create mysql user openmrs@localhost with temp password \'temp_openmrs\'.",
+  notify {"OpenMRS-3":
+    message=> "Step 3. Create mysql user openmrs@localhost with temp password \'temp_openmrs\'.",
   }
   database_user{ 'openmrs@localhost':
     ensure        => present,
@@ -53,14 +58,14 @@ package { "mysql-server": ensure => installed }
   database_grant{'openmrs@localhost':
     privileges => [all],
   }
-notify {"OpenMRS-4":
-    message=> "Step 2. Create database openmrs",
+  notify {"OpenMRS-4":
+    message=> "Step 4. Create database openmrs",
   }
   database{ 'openmrs':
     ensure => present,
     charset => 'utf8',
   } 
-notify {"OpenMRS-3":
+  notify {"OpenMRS-5":
     message=> "Step 5. Clone, fetch, merge a copy of openmrs-module-kenyaemr.git to /usr/src/openmrs-module-kenyaemr",
   }
   exec{ 'openmrs-module-kenyaemr-git-clone':
@@ -71,7 +76,7 @@ notify {"OpenMRS-3":
   
 
   notify {"OpenMRS-6":
-    message=> "Step 4. Run maven install to create distro.zip",
+    message=> "Step 6. Run maven install to create distro.zip",
   }
   exec{ "maven-install":
     cwd => '/usr/src/openmrs-module-kenyaemr',
@@ -81,7 +86,7 @@ notify {"OpenMRS-3":
   }
 
   notify {"OpenMRS-7":
-    message=> "Step 5. wget concept dictionary.",
+    message=> "Step 7. wget concept dictionary.",
   }
   exec { "wget-concept-dictionary":
     cwd => '/usr/src',
@@ -94,7 +99,7 @@ notify {"OpenMRS-3":
   }
 
   notify {"OpenMRS-8":
-    message=> "Step 6. Remove old distro then copy  new distro into tomcat6 modules directory (usr/share/tomcat6/.OpenMRS/modules)",
+    message=> "Step 8. Remove old distro then copy  new distro into tomcat6 modules directory (usr/share/tomcat6/.OpenMRS/modules)",
   }
   exec{ "remove-previous-kenyaemr-distros":
     cwd => '/usr/share/tomcat6/.OpenMRS/modules',
@@ -109,7 +114,7 @@ notify {"OpenMRS-3":
   }
 
   notify {"OpenMRS-9":
-    message=> "Step 7. Create openmrs-runtime.properties file in the .OpenMRS directory",
+    message=> "Step 9. Create openmrs-runtime.properties file in the .OpenMRS directory",
   }
   file {"/usr/share/tomcat6/.OpenMRS/openmrs-runtime.properties":
     content => '
