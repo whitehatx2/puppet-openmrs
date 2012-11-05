@@ -33,9 +33,9 @@ package { "mysql-server": ensure => installed }
     command => '/usr/bin/wget \'http://iweb.dl.sourceforge.net/project/openmrs/releases/OpenMRS_1.9.1/openmrs.war\''
   }
   
-  exec { 'unzip-openmrs':
-    command => '/usr/bin/unzip /usr/src/openmrs.war -d /var/lib/tomcat6/webapps/openmrs',
-    creates => '/var/lib/tomcat6/webapps/openmrs',
+  file { '/var/lib/tomcat6/webapps/openmrs.war':
+    ensure => present,
+	source => '/usr/src/openmrs.war',
     require => Exec['download-openmrs'],
   }
   
@@ -102,11 +102,11 @@ package { "mysql-server": ensure => installed }
     message=> "Step 8. Remove old distro then copy  new distro into tomcat6 modules directory (usr/share/tomcat6/.OpenMRS/modules)",
   }
   exec{ "remove-previous-kenyaemr-distros":
-    cwd => '/usr/share/tomcat6/.OpenMRS/modules',
-    command => '/bin/rm -rf kenyaemr-distro-*',
+    cwd => '/usr/share/tomcat6/.OpenMRS/',
+    command => '/bin/rm -rf ./modules/kenyaemr-distro-*',
   }
   file { '/usr/share/tomcat6/.OpenMRS/modules' :
-		ensure => directory,
+		ensure => "directory",
 		group => 'tomcat6',
 		mode => '0775',
 		source => "/usr/src/openmrs-module-kenyaemr/distro/target/distro" ,
