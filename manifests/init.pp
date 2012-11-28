@@ -30,7 +30,8 @@ package { "mysql-server": ensure => installed }
   exec { 'download-openmrs':
     cwd     => '/usr/src',
     creates => '/usr/src/openmrs.war',
-    command => '/usr/bin/wget \'http://iweb.dl.sourceforge.net/project/openmrs/releases/OpenMRS_1.9.1/openmrs.war\''
+    command => '/usr/bin/wget \'http://iweb.dl.sourceforge.net/project/openmrs/releases/OpenMRS_1.9.1/openmrs.war\'',
+	timeout => 5000,
   }
   
   file { '/var/lib/tomcat6/webapps/openmrs.war':
@@ -82,7 +83,7 @@ package { "mysql-server": ensure => installed }
     cwd => '/usr/src/openmrs-module-kenyaemr',
     command => '/usr/bin/mvn install -DbuildDistro=true -DsetupDatabase=true', 
     logoutput => 'on_failure',
-    timeout => -1, 	
+    timeout => 5000, 	
   }
 
   notify {"OpenMRS-7":
