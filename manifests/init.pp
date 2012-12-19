@@ -1,6 +1,4 @@
 class openmrs{
-package { "mysql-server": ensure => installed }
-
   # Chaining the Notifications to control the order of the installation steps.
   Notify["OpenMRS-1"] ->  
     Exec["download-openmrs"] ->
