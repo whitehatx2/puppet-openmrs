@@ -1,6 +1,12 @@
 class openmrs{
+  
+  package { "tzdata":
+        ensure => installed
+    }
   # Chaining the Notifications to control the order of the installation steps.
-  Notify["OpenMRS-1"] ->  
+  Notify["OpenMRS-1.0"] ->  
+    File["/etc/localtime"] ->
+  Notify["OpenMRS-1.1"] ->  
     Exec["download-openmrs"] ->
   Notify["OpenMRS-2"] ->  
     File['/usr/share/tomcat6/.OpenMRS'] ->
@@ -9,8 +15,12 @@ class openmrs{
     Database_grant['openmrs@localhost'] ->
   Notify["OpenMRS-4"] -> 
     Database['openmrs'] ->
-  Notify["OpenMRS-5"] ->
+  Notify["OpenMRS-5.0"] ->
     Exec['openmrs-module-kenyaemr-git-clone'] ->
+  Notify["OpenMRS-5.1"] ->
+    Exec['openmrs-module-kenyaemr-git-pull'] ->
+  Notify["OpenMRS-5.2"] ->
+    Exec['openmrs-module-kenyaemr-git-checkout'] ->
   Notify["OpenMRS-6"] ->
     Exec["maven-install"] ->
   Notify["OpenMRS-7"] ->
@@ -22,7 +32,15 @@ class openmrs{
   Notify["OpenMRS-9"] ->
 	File ["/usr/share/tomcat6/.OpenMRS/openmrs-runtime.properties"]
   
-  notify {"OpenMRS-1":
+  notify {"OpenMRS-1.0":
+    message=> "Set up timezone to East Africa",
+  }
+  file { "/etc/localtime":
+        require => Package["tzdata"],
+        source => "file:///usr/share/zoneinfo/Africa/Nairobi",
+    }
+
+  notify {"OpenMRS-1.1":
     message=> "Step 1. Download openmrs war from url and unzip to tomcat",
   } 	
   exec { 'download-openmrs':
@@ -64,15 +82,33 @@ class openmrs{
     ensure => present,
     charset => 'utf8',
   } 
-  notify {"OpenMRS-5":
-    message=> "Step 5. Clone, fetch, merge a copy of openmrs-module-kenyaemr.git to /usr/src/openmrs-module-kenyaemr",
+  notify {"OpenMRS-5.0":
+    message=> "Step 5.0 Clone a copy of openmrs-module-kenyaemr.git to /usr/src/openmrs-module-kenyaemr",
   }
   exec{ 'openmrs-module-kenyaemr-git-clone':
     command => '/usr/bin/git clone --depth 1 git://github.com/I-TECH/openmrs-module-kenyaemr.git /usr/src/openmrs-module-kenyaemr',
     creates => '/usr/src/openmrs-module-kenyaemr',
     logoutput => 'true',
   }
+
+  notify {"OpenMRS-5.1":
+    message=> "Step 5.1 Fetch latest copy of openmrs-module-kenyaemr.git to /usr/src/openmrs-module-kenyaemr",
+  }
+  exec{ 'openmrs-module-kenyaemr-git-pull':
+    cwd => '/usr/src/openmrs-module-kenyaemr',
+    command => '/usr/bin/git pull > log.txt',
+    creates => '/usr/src/openmrs-module-kenyaemr',
+    logoutput => 'true',
+  }
   
+  notify {"OpenMRS-5.2":
+    message=> "Step 5.2 Checkout the current stable release",
+  }
+  exec{ 'openmrs-module-kenyaemr-git-checkout':
+    cwd => '/usr/src/openmrs-module-kenyaemr',
+    command => "/usr/bin/git checkout ${release}",
+    logoutput => 'true',
+  }
 
   notify {"OpenMRS-6":
     message=> "Step 6. Run maven install to create distro.zip",
@@ -116,6 +152,10 @@ class openmrs{
     message=> "Step 9. Create openmrs-runtime.properties file in the .OpenMRS directory",
   }
   file {"/usr/share/tomcat6/.OpenMRS/openmrs-runtime.properties":
+    ensure => present,
+    owner => 'root',
+    group => 'tomcat6',
+    mode => '0660',
     content => '
 encryption.vector=kznZRqg+DbuOVWjhEl63cA==
 connection.url=jdbc:mysql://localhost:3306/openmrs?autoReconnect=true&sessionVariables=storage_engine=InnoDB&useUnicode=true&characterEncoding=UTF-8
