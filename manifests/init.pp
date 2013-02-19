@@ -125,12 +125,14 @@ class openmrs{
   }
   exec { "wget-concept-dictionary":
     cwd => '/usr/src',
-    command => '/usr/bin/wget \'https://openmrs:openmrs@download.cirg.washington.edu/openmrs/dictionary/openmrs_concepts_1.9.0_20120727.sql\'',
-    creates => '/usr/src/openmrs_concepts_1.9.0_20120727.sql';
+    command => '/usr/bin/wget \'https://www.dropbox.com/s/lnfvd9r7cblpawr/kenyaemr-concepts-2013.1.sql\'',
+    creates => '/usr/src/kenyaemr-concepts-2013.1.sql',
+    timeout => -1,
   }
   exec { "apply-concept-dictionary":
     cwd => '/usr/src',
-    command => '/usr/bin/mysql openmrs < openmrs_concepts_1.9.0_20120727.sql',
+    command => '/usr/bin/mysql openmrs < kenyaemr-concepts-2013.1.sql',
+    timeout => -1,
   }
 
   notify {"OpenMRS-8":
