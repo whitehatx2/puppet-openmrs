@@ -4,8 +4,10 @@ class openmrs{
         ensure => installed
     }
   # Chaining the Notifications to control the order of the installation steps.
-  Notify["OpenMRS-1.0"] ->  
+  Notify["OpenMRS-1.0.0"] ->  
     File["/etc/localtime"] ->
+  Notify["OpenMRS-1.0.1"] ->  
+    File["/etc/timezone"] ->
   Notify["OpenMRS-1.1"] ->  
     Exec["download-openmrs"] ->
   Notify["OpenMRS-2"] ->  
@@ -32,12 +34,20 @@ class openmrs{
   Notify["OpenMRS-9"] ->
 	File ["/usr/share/tomcat6/.OpenMRS/openmrs-runtime.properties"]
   
-  notify {"OpenMRS-1.0":
-    message=> "Set up timezone to East Africa",
+  notify {"OpenMRS-1.0.0":
+    message=> "Set up timezone to East Africa local time",
   }
   file { "/etc/localtime":
         require => Package["tzdata"],
-        source => "file:///usr/share/zoneinfo/Africa/Nairobi",
+        source => "/usr/share/zoneinfo/Africa/Nairobi",
+    }
+
+  notify {"OpenMRS-1.0.1":
+    message=> "Set up timezone to East Africa",
+  }
+  file { "/etc/timezone":
+        require => Package["tzdata"],
+        source => "/usr/share/zoneinfo/Africa/Nairobi",
     }
 
   notify {"OpenMRS-1.1":
@@ -128,7 +138,7 @@ class openmrs{
     command => '/usr/bin/wget \'https://www.dropbox.com/s/lnfvd9r7cblpawr/kenyaemr-concepts-2013.1.sql\'',
     creates => '/usr/src/kenyaemr-concepts-2013.1.sql',
     timeout => -1,
-  }
+
   exec { "apply-concept-dictionary":
     cwd => '/usr/src',
     command => '/usr/bin/mysql openmrs < kenyaemr-concepts-2013.1.sql',
