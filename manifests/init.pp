@@ -32,7 +32,12 @@ class openmrs{
     Exec["remove-previous-kenyaemr-distros"] ->
     File ["/usr/share/tomcat6/.OpenMRS/modules"] ->
   Notify["OpenMRS-9"] ->
-	File ["/usr/share/tomcat6/.OpenMRS/openmrs-runtime.properties"]
+	File ["/usr/share/tomcat6/.OpenMRS/openmrs-runtime.properties"]->
+  Notify["OpenMRS-10"] ->
+	File ["/opt/openmrs-backup-tools"] ->
+  Notify["OpenMRS-11"] ->
+	Exec ['configure-backup-cron']
+
   
   notify {"OpenMRS-1.0.0":
     message=> "Set up timezone to East Africa local time",
@@ -57,12 +62,12 @@ class openmrs{
     cwd     => '/usr/src',
     creates => '/usr/src/openmrs.war',
     command => '/usr/bin/wget \'http://iweb.dl.sourceforge.net/project/openmrs/releases/OpenMRS_1.9.1/openmrs.war\'',
-	timeout => 5000,
+    timeout => 5000,
   }
   
   file { '/var/lib/tomcat6/webapps/openmrs.war':
     ensure => present,
-	source => '/usr/src/openmrs.war',
+    source => '/usr/src/openmrs.war',
     require => Exec['download-openmrs'],
   }
   
@@ -106,7 +111,7 @@ class openmrs{
   }
   exec{ 'openmrs-module-kenyaemr-git-pull':
     cwd => '/usr/src/openmrs-module-kenyaemr',
-    command => '/usr/bin/git pull > log.txt',
+    command => '/usr/bin/git pull',
     creates => '/usr/src/openmrs-module-kenyaemr',
     logoutput => 'true',
   }
@@ -116,7 +121,7 @@ class openmrs{
   }
   exec{ 'openmrs-module-kenyaemr-git-checkout':
     cwd => '/usr/src/openmrs-module-kenyaemr',
-    command => "/usr/bin/git checkout ${release}",
+    command => "/usr/bin/git checkout 2013.1",
     logoutput => 'true',
   }
 
@@ -125,7 +130,7 @@ class openmrs{
   }
   exec{ "maven-install":
     cwd => '/usr/src/openmrs-module-kenyaemr',
-    command => '/usr/bin/mvn install -DbuildDistro=true -DsetupDatabase=true', 
+    command => '/usr/bin/mvn clean install -DbuildDistro=true -DsetupDatabase=true', 
     logoutput => 'on_failure',
     timeout => 5000, 	
   }
@@ -151,7 +156,7 @@ class openmrs{
   }
   exec{ "remove-previous-kenyaemr-distros":
     cwd => '/usr/share/tomcat6/.OpenMRS/',
-    command => '/bin/rm -rf ./modules/kenyaemr-distro-*',
+    command => '/bin/rm -rf /usr/share/tomcat6/.OpenMRS/modules/*.*',
   }
   file { '/usr/share/tomcat6/.OpenMRS/modules' :
 		ensure => "directory",
@@ -181,4 +186,22 @@ connection.password=temp_openmrs
 ',
   }  
 
+  notify {"OpenMRS-10":
+    message=> "Install OpenMRS Backup Tools",
+  }
+  file { '/opt/openmrs-backup-tools':,
+    ensure => directory,
+    group => 'tomcat6',
+    mode => '0775',
+    source => 'puppet:///modules/openmrs/openmrs-backup-tools',
+    recurse => true
+  }
+
+  notify {"OpenMRS-11":
+    message=> "Configure backup cronjob to run daily at midnight",
+  }
+  exec { 'configure-backup-cron':
+    command => '/opt/openmrs-backup-tools/setup.sh',
+    timeout => 5000,
+  }
 }
