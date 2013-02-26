@@ -12,8 +12,12 @@ popd  > /dev/null
 
 # Load configuration values
 . $SCRIPT_PATH/backup.conf
+
+mkdir /mnt/backup > /dev/null
+
+mount "$USB_DEV_PATH" /mnt/backup
  
-DST_DIR="$USB_DEV_PATH/openmrs_backups"
+DST_DIR=/mnt/backup
  
 echo "Syncing $DST_DIR with $BACKUP_DEST_DIR"
  
@@ -23,4 +27,4 @@ logger -t $LOGGING_TAG -p local0.crit "Backups synced with USB device"
  
 echo "Unmounting USB drive"
  
-pumount $USB_DEV_PATH
+umount /mnt/backup

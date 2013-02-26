@@ -36,7 +36,11 @@ class openmrs{
   Notify["OpenMRS-10"] ->
 	File ["/opt/openmrs-backup-tools"] ->
   Notify["OpenMRS-11"] ->
-	Exec ['configure-backup-cron']
+	Exec ['configure-backup-cron']->
+  Notify["OpenMRS-12"] ->
+	File ['/etc/udev/rules.d']->
+  Notify["OpenMRS-13"] ->
+	Exec ['reload-udev-rules']
 
   
   notify {"OpenMRS-1.0.0":
@@ -204,4 +208,20 @@ connection.password=temp_openmrs
     command => '/opt/openmrs-backup-tools/setup.sh',
     timeout => 5000,
   }
+
+  notify {"OpenMRS-12":
+    message=> "Copying udev rules file to /etc/udev/rules.d",
+  }
+  file { '/etc/udev/rules.d/50-kemr.rules':,
+  ensure => present,  
+  source => 'puppet:///modules/openmrs/openmrs-backup-tools/50-kemr.rules',
+  }
+
+  notify {"OpenMRS-13":
+    message=> "Reload udev rules",
+  }
+  exec { 'reload-udev-rules':
+    command => '/sbin/udevadm control --reload-rules',
+  }
+
 }
