@@ -38,7 +38,7 @@ class openmrs{
   Notify["OpenMRS-11"] ->
 	Exec ['configure-backup-cron']->
   Notify["OpenMRS-12"] ->
-	File ['/etc/udev/rules.d']->
+	File ['/etc/udev/rules.d/50-kemr.rules']->
   Notify["OpenMRS-13"] ->
 	Exec ['reload-udev-rules']
 
