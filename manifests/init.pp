@@ -1,5 +1,4 @@
 class openmrs{
-  
   package { "tzdata":
         ensure => installed
     }
@@ -12,22 +11,16 @@ class openmrs{
     Exec["download-openmrs"] ->
   Notify["OpenMRS-2"] ->  
     File['/usr/share/tomcat6/.OpenMRS'] ->
-  Notify["OpenMRS-3"] ->  
-    Database_user['openmrs@localhost'] ->
-    Database_grant['openmrs@localhost'] ->
-  Notify["OpenMRS-4"] -> 
-    Database['openmrs'] ->
   Notify["OpenMRS-5.0"] ->
     Exec['openmrs-module-kenyaemr-git-clone'] ->
   Notify["OpenMRS-5.1"] ->
     Exec['openmrs-module-kenyaemr-git-pull'] ->
   Notify["OpenMRS-5.2"] ->
     Exec['openmrs-module-kenyaemr-git-checkout'] ->
-  Notify["OpenMRS-6"] ->
+  Notify["OpenMRS-6.0"] ->
+    Exec["update-installation-pom-xml"] ->
+  Notify["OpenMRS-6.1"] ->
     Exec["maven-install"] ->
-  Notify["OpenMRS-7"] ->
-    Exec["wget-concept-dictionary"] ->
-    Exec["apply-concept-dictionary"] ->	
   Notify["OpenMRS-8"] ->
     Exec["remove-previous-kenyaemr-distros"] ->
     File ["/usr/share/tomcat6/.OpenMRS/modules"] ->
@@ -86,24 +79,7 @@ class openmrs{
     mode => '0775',
   }
   
-  notify {"OpenMRS-3":
-    message=> "Step 3. Create mysql user openmrs@localhost with temp password \'temp_openmrs\'.",
-  }
-  database_user{ 'openmrs@localhost':
-    ensure        => present,
-    password_hash => mysql_password('temp_openmrs'),
-  }
-  database_grant{'openmrs@localhost':
-    privileges => [all],
-  }
-  notify {"OpenMRS-4":
-    message=> "Step 4. Create database openmrs",
-  }
-  database{ 'openmrs':
-    ensure => present,
-    charset => 'utf8',
-  } 
-  notify {"OpenMRS-5.0":
+ notify {"OpenMRS-5.0":
     message=> "Step 5.0 Clone a copy of openmrs-module-kenyaemr.git to /usr/src/openmrs-module-kenyaemr",
   }
   exec{ 'openmrs-module-kenyaemr-git-clone':
@@ -130,31 +106,24 @@ class openmrs{
     command => "/usr/bin/git checkout 2013.1",
     logoutput => 'true',
   }
-
-  notify {"OpenMRS-6":
-    message=> "Step 6. Run maven install to create distro.zip",
+ 
+  notify {"OpenMRS-6.0":
+    message=> "Step 6.0 Check build mode and update pom.xml with DB ip address",
+  }
+   exec{'update-installation-pom-xml':
+    cwd => '/usr/src/openmrs-module-kenyaemr/installation',
+    command => "/bin/sed -i 's/localhost/10.0.2.17/g' pom.xml",
+    logoutput => 'true',
+   } 
+  
+  notify {"OpenMRS-6.1":
+    message=> "Step 6.1 Run maven install to create distro.zip",
   }
   exec{ "maven-install":
     cwd => '/usr/src/openmrs-module-kenyaemr',
     command => '/usr/bin/mvn clean install -DbuildDistro=true -DsetupDatabase=true', 
     logoutput => 'on_failure',
     timeout => 5000, 	
-  }
-
-  notify {"OpenMRS-7":
-    message=> "Step 7. wget concept dictionary.",
-  }
-  exec { "wget-concept-dictionary":
-    cwd => '/usr/src',
-    command => '/usr/bin/wget \'https://www.dropbox.com/s/lnfvd9r7cblpawr/kenyaemr-concepts-2013.1.sql\'',
-    creates => '/usr/src/kenyaemr-concepts-2013.1.sql',
-    timeout => 5000,
-  }
-
-  exec { "apply-concept-dictionary":
-    cwd => '/usr/src',
-    command => '/usr/bin/mysql openmrs < kenyaemr-concepts-2013.1.sql',
-    timeout => 5000,	
   }
 
   notify {"OpenMRS-8":
@@ -182,7 +151,7 @@ class openmrs{
     mode => '0660',
     content => '
 encryption.vector=kznZRqg+DbuOVWjhEl63cA==
-connection.url=jdbc:mysql://localhost:3306/openmrs?autoReconnect=true&sessionVariables=storage_engine=InnoDB&useUnicode=true&characterEncoding=UTF-8
+connection.url=jdbc:mysql://10.0.2.17:3306/openmrs?autoReconnect=true&sessionVariables=storage_engine=InnoDB&useUnicode=true&characterEncoding=UTF-8
 module.allow_web_admin=true
 connection.username=openmrs
 auto_update_database=false
@@ -190,7 +159,7 @@ encryption.key=UA0+SGpR1BG7538EsklrZQ==
 connection.password=temp_openmrs
 
 ',
-  }  
+  }
 
   notify {"OpenMRS-10":
     message=> "Install OpenMRS Backup Tools",
